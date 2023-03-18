@@ -19,7 +19,7 @@ func main() {
 		return
 	}
 	if testRam {
-		ram.RunTest(remainFreeMb, allocateMb)
+		ram.RunTest(remainFreeMb*1024*1024, allocateMb*1024*1024)
 	}
 }
 
