@@ -28,10 +28,10 @@ func RunTest(remainFree int64, alloc int64) {
 
 	pageSize := int64(os.Getpagesize())
 	chunkSize := pageSize * 256
-	logger.Printf("Page size: %v, chunk size: %v", pageSize, chunkSize)
+	logger.Printf("Page size: %v, chunk size: %v", formatMemory(pageSize), formatMemory(chunkSize))
 
 	freeMemoryBefore := int64(memory.FreeMemory())
-	logger.Printf("Free memory before test: %v", freeMemoryBefore)
+	logger.Printf("Free memory before test: %v", formatMemory(freeMemoryBefore))
 
 	var toAllocate, totalAllocated int64
 	if alloc > 0 {
@@ -82,8 +82,8 @@ func releaseRam() {
 }
 
 func formatMemory(ms int64) string {
-	const Gb = 1024 * 1024 * 2014
-	const Mb = 1024 * 2014
+	const Gb = 1024 * 1024 * 1024
+	const Mb = 1024 * 1024
 	const Kb = 1024
 
 	switch {
