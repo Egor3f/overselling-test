@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pbnjay/memory"
 	"log"
+	"math"
 	"os"
 	"runtime/debug"
 	"time"
@@ -18,9 +19,6 @@ func init() {
 }
 
 func RunTest(remainFree int64, alloc int64) {
-	const (
-		defaultRemainFree = 50 * 1024 * 1024
-	)
 	logger.Println("Started")
 
 	pageSize := int64(os.Getpagesize()) // assuming 4096
@@ -31,7 +29,8 @@ func RunTest(remainFree int64, alloc int64) {
 		toAllocate = alloc
 	} else {
 		if remainFree <= 0 {
-			remainFree = defaultRemainFree
+			remainFree = int64(math.Min(0.05*float64(memory.TotalMemory()), 50*1024*1024))
+			// default is: 5% of total memory, but not less than 50mb
 		}
 		toAllocate = absInt(freeMemoryBeforeTest - remainFree)
 	}
@@ -86,7 +85,6 @@ func releaseRam() {
 }
 
 func formatMemory(ms int64) string {
-	println(ms)
 	const Gb = 1024 * 1024 * 1024
 	const Mb = 1024 * 1024
 	const Kb = 1024
