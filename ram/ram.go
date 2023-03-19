@@ -50,13 +50,12 @@ func RunTest(remainFree int64, alloc int64) {
 	testDuration := time.Since(startTime)
 
 	freeMemoryAfterTest := int64(memory.FreeMemory())
-	calculationError := totalAllocated - (freeMemoryBeforeTest - freeMemoryAfterTest)
 	logger.Printf(
 		"Free memory before test: %v, after test: %v, diff %v, calculation error %v",
 		formatMemory(freeMemoryBeforeTest),
 		formatMemory(freeMemoryAfterTest),
 		formatMemory(freeMemoryBeforeTest-freeMemoryAfterTest),
-		formatMemory(calculationError),
+		formatMemory(totalAllocated-(freeMemoryBeforeTest-freeMemoryAfterTest)),
 	)
 
 	releaseRam()
@@ -87,19 +86,20 @@ func releaseRam() {
 }
 
 func formatMemory(ms int64) string {
+	println(ms)
 	const Gb = 1024 * 1024 * 1024
 	const Mb = 1024 * 1024
 	const Kb = 1024
 
 	switch {
-	case ms > Gb:
+	case absInt(ms) > Gb:
 		return fmt.Sprintf("%.3f Gb", float64(ms)/Gb)
-	case ms > Mb:
+	case absInt(ms) > Mb:
 		return fmt.Sprintf("%.3f Mb", float64(ms)/Mb)
-	case ms > Kb:
+	case absInt(ms) > Kb:
 		return fmt.Sprintf("%.3f Kb", float64(ms)/Kb)
 	default:
-		return fmt.Sprintf("%d", uint64(ms))
+		return fmt.Sprintf("%d", ms)
 	}
 }
 
