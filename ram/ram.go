@@ -1,20 +1,17 @@
 package ram
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/pbnjay/memory"
 	"log"
 	"os"
-	"runtime"
+	"runtime/debug"
 	"time"
 )
 
-type allocateType uint64
-
-const allocateTypeSize = 8
-
 var logger *log.Logger
-var slices [][]allocateType
+var buffers []*bytes.Buffer
 
 func init() {
 	logger = log.New(os.Stdout, "[RAM] ", 0)
@@ -26,13 +23,9 @@ func RunTest(remainFree int64, alloc int64) {
 	)
 	logger.Println("Started")
 
-	pageSize := int64(os.Getpagesize())
-	chunkSize := pageSize * 256
-	logger.Printf("Page size: %v, chunk size: %v", formatMemory(pageSize), formatMemory(chunkSize))
-
-	freeMemoryBefore := int64(memory.FreeMemory())
-	logger.Printf("Free memory before test: %v", formatMemory(freeMemoryBefore))
-
+	pageSize := int64(os.Getpagesize()) // assuming 4096
+	chunkSize := int64(1024 * 1024)
+	freeMemoryBeforeTest := int64(memory.FreeMemory())
 	var toAllocate, totalAllocated int64
 	if alloc > 0 {
 		toAllocate = alloc
@@ -40,22 +33,29 @@ func RunTest(remainFree int64, alloc int64) {
 		if remainFree <= 0 {
 			remainFree = defaultRemainFree
 		}
-		toAllocate = absInt(freeMemoryBefore - remainFree)
+		toAllocate = absInt(freeMemoryBeforeTest - remainFree)
 	}
+	logger.Printf(
+		"Page size: %v, chunk size: %v, free memory: %v, to allocate: %v",
+		formatMemory(pageSize),
+		formatMemory(chunkSize),
+		formatMemory(freeMemoryBeforeTest),
+		formatMemory(toAllocate),
+	)
 
+	startTime := time.Now()
 	for totalAllocated = 0; totalAllocated < toAllocate; totalAllocated += chunkSize {
-		timeElapsed := allocateRam(chunkSize)
-		totalAllocated += chunkSize
-		logger.Printf("Allocated about %v, took %v microseconds", formatMemory(totalAllocated), formatMemory(timeElapsed))
+		allocateRam(chunkSize)
 	}
+	testDuration := time.Since(startTime)
 
 	freeMemoryAfterTest := int64(memory.FreeMemory())
-	calculationError := absInt(totalAllocated - (freeMemoryBefore - freeMemoryAfterTest))
+	calculationError := totalAllocated - (freeMemoryBeforeTest - freeMemoryAfterTest)
 	logger.Printf(
-		"Free memory before test: %v, after test: %v, allocated totally %v, calculation error %v",
-		formatMemory(freeMemoryBefore),
+		"Free memory before test: %v, after test: %v, diff %v, calculation error %v",
+		formatMemory(freeMemoryBeforeTest),
 		formatMemory(freeMemoryAfterTest),
-		formatMemory(freeMemoryBefore-freeMemoryAfterTest),
+		formatMemory(freeMemoryBeforeTest-freeMemoryAfterTest),
 		formatMemory(calculationError),
 	)
 
@@ -64,21 +64,26 @@ func RunTest(remainFree int64, alloc int64) {
 	logger.Printf(
 		"Released RAM, free memory: %v, diff: %v",
 		formatMemory(freeMemoryAfterRelease),
-		formatMemory(absInt(freeMemoryAfterRelease-freeMemoryAfterTest)),
+		formatMemory(freeMemoryAfterRelease-freeMemoryAfterTest),
+	)
+	logger.Printf(
+		"Total test duration: %v, microsecs per Gb: %v",
+		testDuration,
+		float64(testDuration.Microseconds())/(float64(totalAllocated)/1024/1024/1024),
 	)
 }
 
 func allocateRam(byteCount int64) (microsecs int64) {
 	startTime := time.Now()
-	elemCount := byteCount / allocateTypeSize
-	newSlice := make([]allocateType, elemCount, elemCount)
-	slices = append(slices, newSlice)
+	buf := bytes.NewBuffer([]byte{})
+	buf.Grow(int(byteCount))
+	buffers = append(buffers, buf)
 	return time.Since(startTime).Microseconds()
 }
 
 func releaseRam() {
-	slices = nil
-	runtime.GC()
+	buffers = nil
+	debug.FreeOSMemory()
 }
 
 func formatMemory(ms int64) string {
